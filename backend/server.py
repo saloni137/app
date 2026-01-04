@@ -1,23 +1,25 @@
 from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+import asyncpg
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
-import uuid
 from datetime import datetime, timezone
 from enum import Enum
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# PostgreSQL connection
+SUPABASE_URL = os.environ.get('SUPABASE_URL') or os.environ.get('DATABASE_URL')
+if not SUPABASE_URL:
+    raise ValueError("SUPABASE_URL or DATABASE_URL environment variable is required")
+
+# Connection pool (will be initialized on startup)
+pool: Optional[asyncpg.Pool] = None
 
 # Create the main app
 app = FastAPI()
@@ -39,8 +41,8 @@ class CategoryBase(BaseModel):
 
 class Category(CategoryBase):
     model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    id: str
+    created_at: str
 
 class CategoryCreate(CategoryBase):
     pass
@@ -59,8 +61,8 @@ class TransactionBase(BaseModel):
 
 class Transaction(TransactionBase):
     model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    id: str
+    created_at: str
 
 class TransactionCreate(TransactionBase):
     pass
@@ -78,30 +80,29 @@ class MonthlySummary(BaseModel):
     balance: float
     category_breakdown: List[dict]
 
-# Default categories
-DEFAULT_CATEGORIES = [
-    {"name": "Salary", "type": "income", "budget_limit": 0, "color": "#2E5C42"},
-    {"name": "Freelance", "type": "income", "budget_limit": 0, "color": "#8FB339"},
-    {"name": "Other Income", "type": "income", "budget_limit": 0, "color": "#5C8A4E"},
-    {"name": "Food & Dining", "type": "expense", "budget_limit": 500, "color": "#E07A5F"},
-    {"name": "Rent", "type": "expense", "budget_limit": 1500, "color": "#3D405B"},
-    {"name": "Utilities", "type": "expense", "budget_limit": 200, "color": "#81B29A"},
-    {"name": "Transportation", "type": "expense", "budget_limit": 300, "color": "#F2CC8F"},
-    {"name": "Entertainment", "type": "expense", "budget_limit": 200, "color": "#6D597A"},
-    {"name": "Shopping", "type": "expense", "budget_limit": 300, "color": "#B56576"},
-    {"name": "Healthcare", "type": "expense", "budget_limit": 150, "color": "#355070"},
-    {"name": "Other Expenses", "type": "expense", "budget_limit": 200, "color": "#EAAC8B"},
-]
-
-# Initialize default categories
+# Initialize database connection pool
 @app.on_event("startup")
-async def init_default_categories():
-    count = await db.categories.count_documents({})
-    if count == 0:
-        for cat in DEFAULT_CATEGORIES:
-            category = Category(**cat)
-            await db.categories.insert_one(category.model_dump())
-        logging.info("Default categories initialized")
+async def startup_db():
+    global pool
+    try:
+        pool = await asyncpg.create_pool(SUPABASE_URL, min_size=1, max_size=10)
+        logging.info("Database connection pool created")
+    except Exception as e:
+        logging.error(f"Failed to create database pool: {e}")
+        raise
+
+@app.on_event("shutdown")
+async def shutdown_db():
+    global pool
+    if pool:
+        await pool.close()
+        logging.info("Database connection pool closed")
+
+# Helper function to get database connection
+async def get_db():
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
+    return pool
 
 # Health check
 @api_router.get("/")
@@ -111,43 +112,96 @@ async def root():
 # Category endpoints
 @api_router.get("/categories", response_model=List[Category])
 async def get_categories():
-    categories = await db.categories.find({}, {"_id": 0}).to_list(100)
-    return categories
+    db_pool = await get_db()
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch("SELECT id::text, name, type, budget_limit, color, created_at FROM categories ORDER BY name")
+        return [
+            Category(
+                id=str(row["id"]),
+                name=row["name"],
+                type=row["type"],
+                budget_limit=float(row["budget_limit"]),
+                color=row["color"],
+                created_at=row["created_at"].isoformat() if row["created_at"] else datetime.now(timezone.utc).isoformat()
+            )
+            for row in rows
+        ]
 
 @api_router.post("/categories", response_model=Category)
 async def create_category(category_data: CategoryCreate):
-    category = Category(**category_data.model_dump())
-    await db.categories.insert_one(category.model_dump())
-    return category
+    db_pool = await get_db()
+    async with db_pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "INSERT INTO categories (name, type, budget_limit, color) VALUES ($1, $2, $3, $4) RETURNING id::text, name, type, budget_limit, color, created_at",
+            category_data.name, category_data.type.value, category_data.budget_limit, category_data.color
+        )
+        return Category(
+            id=row["id"],
+            name=row["name"],
+            type=row["type"],
+            budget_limit=float(row["budget_limit"]),
+            color=row["color"],
+            created_at=row["created_at"].isoformat()
+        )
 
 @api_router.put("/categories/{category_id}", response_model=Category)
 async def update_category(category_id: str, category_data: CategoryUpdate):
-    update_dict = {k: v for k, v in category_data.model_dump().items() if v is not None}
-    if not update_dict:
+    db_pool = await get_db()
+    update_fields = []
+    values = []
+    param_num = 1
+    
+    if category_data.name is not None:
+        update_fields.append(f"name = ${param_num}")
+        values.append(category_data.name)
+        param_num += 1
+    if category_data.budget_limit is not None:
+        update_fields.append(f"budget_limit = ${param_num}")
+        values.append(category_data.budget_limit)
+        param_num += 1
+    if category_data.color is not None:
+        update_fields.append(f"color = ${param_num}")
+        values.append(category_data.color)
+        param_num += 1
+    
+    if not update_fields:
         raise HTTPException(status_code=400, detail="No fields to update")
     
-    result = await db.categories.find_one_and_update(
-        {"id": category_id},
-        {"$set": update_dict},
-        return_document=True
-    )
-    if not result:
-        raise HTTPException(status_code=404, detail="Category not found")
+    values.append(category_id)
+    query = f"UPDATE categories SET {', '.join(update_fields)} WHERE id::text = ${param_num} RETURNING id::text, name, type, budget_limit, color, created_at"
     
-    result.pop("_id", None)
-    return result
+    async with db_pool.acquire() as conn:
+        row = await conn.fetchrow(query, *values)
+        if not row:
+            raise HTTPException(status_code=404, detail="Category not found")
+        return Category(
+            id=row["id"],
+            name=row["name"],
+            type=row["type"],
+            budget_limit=float(row["budget_limit"]),
+            color=row["color"],
+            created_at=row["created_at"].isoformat()
+        )
 
 @api_router.delete("/categories/{category_id}")
 async def delete_category(category_id: str):
-    # Check if category has transactions
-    tx_count = await db.transactions.count_documents({"category_id": category_id})
-    if tx_count > 0:
-        raise HTTPException(status_code=400, detail="Cannot delete category with existing transactions")
-    
-    result = await db.categories.delete_one({"id": category_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Category not found")
-    return {"message": "Category deleted"}
+    db_pool = await get_db()
+    async with db_pool.acquire() as conn:
+        # Check if category has transactions
+        tx_count = await conn.fetchval(
+            "SELECT COUNT(*) FROM transactions WHERE category_id::text = $1",
+            category_id
+        )
+        if tx_count > 0:
+            raise HTTPException(status_code=400, detail="Cannot delete category with existing transactions")
+        
+        result = await conn.execute(
+            "DELETE FROM categories WHERE id::text = $1",
+            category_id
+        )
+        if result == "DELETE 0":
+            raise HTTPException(status_code=404, detail="Category not found")
+        return {"message": "Category deleted"}
 
 # Transaction endpoints
 @api_router.get("/transactions", response_model=List[Transaction])
@@ -157,65 +211,143 @@ async def get_transactions(
     type: Optional[TransactionType] = None,
     category_id: Optional[str] = None
 ):
-    query = {}
+    db_pool = await get_db()
+    query_parts = ["SELECT id::text, type, amount, category_id::text, description, date, created_at FROM transactions WHERE 1=1"]
+    params = []
+    param_num = 1
     
     if month and year:
-        # Filter by month/year
         start_date = f"{year}-{month:02d}-01"
         if month == 12:
             end_date = f"{year + 1}-01-01"
         else:
             end_date = f"{year}-{month + 1:02d}-01"
-        query["date"] = {"$gte": start_date, "$lt": end_date}
+        query_parts.append(f"AND date >= ${param_num} AND date < ${param_num + 1}")
+        params.extend([start_date, end_date])
+        param_num += 2
     
     if type:
-        query["type"] = type.value
+        query_parts.append(f"AND type = ${param_num}")
+        params.append(type.value)
+        param_num += 1
     
     if category_id:
-        query["category_id"] = category_id
+        query_parts.append(f"AND category_id::text = ${param_num}")
+        params.append(category_id)
+        param_num += 1
     
-    transactions = await db.transactions.find(query, {"_id": 0}).sort("date", -1).to_list(1000)
-    return transactions
+    query_parts.append("ORDER BY date DESC LIMIT 1000")
+    query = " ".join(query_parts)
+    
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch(query, *params)
+        return [
+            Transaction(
+                id=str(row["id"]),
+                type=row["type"],
+                amount=float(row["amount"]),
+                category_id=str(row["category_id"]),
+                description=row["description"] or "",
+                date=str(row["date"]),
+                created_at=row["created_at"].isoformat() if row["created_at"] else datetime.now(timezone.utc).isoformat()
+            )
+            for row in rows
+        ]
 
 @api_router.post("/transactions", response_model=Transaction)
 async def create_transaction(tx_data: TransactionCreate):
-    # Verify category exists
-    category = await db.categories.find_one({"id": tx_data.category_id})
-    if not category:
-        raise HTTPException(status_code=400, detail="Category not found")
-    
-    transaction = Transaction(**tx_data.model_dump())
-    await db.transactions.insert_one(transaction.model_dump())
-    return transaction
+    db_pool = await get_db()
+    async with db_pool.acquire() as conn:
+        # Verify category exists
+        category = await conn.fetchrow(
+            "SELECT id FROM categories WHERE id::text = $1",
+            tx_data.category_id
+        )
+        if not category:
+            raise HTTPException(status_code=400, detail="Category not found")
+        
+        row = await conn.fetchrow(
+            "INSERT INTO transactions (type, amount, category_id, description, date) VALUES ($1, $2, $3::uuid, $4, $5) RETURNING id::text, type, amount, category_id::text, description, date, created_at",
+            tx_data.type.value, tx_data.amount, tx_data.category_id, tx_data.description, tx_data.date
+        )
+        return Transaction(
+            id=row["id"],
+            type=row["type"],
+            amount=float(row["amount"]),
+            category_id=row["category_id"],
+            description=row["description"] or "",
+            date=str(row["date"]),
+            created_at=row["created_at"].isoformat()
+        )
 
 @api_router.put("/transactions/{transaction_id}", response_model=Transaction)
 async def update_transaction(transaction_id: str, tx_data: TransactionUpdate):
-    update_dict = {k: v for k, v in tx_data.model_dump().items() if v is not None}
-    if not update_dict:
-        raise HTTPException(status_code=400, detail="No fields to update")
+    db_pool = await get_db()
+    update_fields = []
+    values = []
+    param_num = 1
     
-    if "category_id" in update_dict:
-        category = await db.categories.find_one({"id": update_dict["category_id"]})
-        if not category:
-            raise HTTPException(status_code=400, detail="Category not found")
-    
-    result = await db.transactions.find_one_and_update(
-        {"id": transaction_id},
-        {"$set": update_dict},
-        return_document=True
-    )
-    if not result:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-    
-    result.pop("_id", None)
-    return result
+    async with db_pool.acquire() as conn:
+        if tx_data.category_id is not None:
+            # Verify category exists
+            category = await conn.fetchrow(
+                "SELECT id FROM categories WHERE id::text = $1",
+                tx_data.category_id
+            )
+            if not category:
+                raise HTTPException(status_code=400, detail="Category not found")
+        
+        if tx_data.type is not None:
+            update_fields.append(f"type = ${param_num}")
+            values.append(tx_data.type.value)
+            param_num += 1
+        if tx_data.amount is not None:
+            update_fields.append(f"amount = ${param_num}")
+            values.append(tx_data.amount)
+            param_num += 1
+        if tx_data.category_id is not None:
+            update_fields.append(f"category_id = ${param_num}::uuid")
+            values.append(tx_data.category_id)
+            param_num += 1
+        if tx_data.description is not None:
+            update_fields.append(f"description = ${param_num}")
+            values.append(tx_data.description)
+            param_num += 1
+        if tx_data.date is not None:
+            update_fields.append(f"date = ${param_num}")
+            values.append(tx_data.date)
+            param_num += 1
+        
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="No fields to update")
+        
+        values.append(transaction_id)
+        query = f"UPDATE transactions SET {', '.join(update_fields)} WHERE id::text = ${param_num} RETURNING id::text, type, amount, category_id::text, description, date, created_at"
+        
+        row = await conn.fetchrow(query, *values)
+        if not row:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+        return Transaction(
+            id=row["id"],
+            type=row["type"],
+            amount=float(row["amount"]),
+            category_id=row["category_id"],
+            description=row["description"] or "",
+            date=str(row["date"]),
+            created_at=row["created_at"].isoformat()
+        )
 
 @api_router.delete("/transactions/{transaction_id}")
 async def delete_transaction(transaction_id: str):
-    result = await db.transactions.delete_one({"id": transaction_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-    return {"message": "Transaction deleted"}
+    db_pool = await get_db()
+    async with db_pool.acquire() as conn:
+        result = await conn.execute(
+            "DELETE FROM transactions WHERE id::text = $1",
+            transaction_id
+        )
+        if result == "DELETE 0":
+            raise HTTPException(status_code=404, detail="Transaction not found")
+        return {"message": "Transaction deleted"}
 
 # Summary endpoints
 @api_router.get("/summary/monthly")
@@ -226,87 +358,89 @@ async def get_monthly_summary(month: int, year: int):
     else:
         end_date = f"{year}-{month + 1:02d}-01"
     
-    # Get all transactions for the month
-    transactions = await db.transactions.find(
-        {"date": {"$gte": start_date, "$lt": end_date}},
-        {"_id": 0}
-    ).to_list(1000)
-    
-    # Get all categories
-    categories = await db.categories.find({}, {"_id": 0}).to_list(100)
-    cat_map = {c["id"]: c for c in categories}
-    
-    total_income = 0.0
-    total_expenses = 0.0
-    category_totals = {}
-    
-    for tx in transactions:
-        if tx["type"] == "income":
-            total_income += tx["amount"]
-        else:
-            total_expenses += tx["amount"]
+    db_pool = await get_db()
+    async with db_pool.acquire() as conn:
+        # Get transactions for the month
+        transactions = await conn.fetch(
+            "SELECT type, amount, category_id::text FROM transactions WHERE date >= $1 AND date < $2",
+            start_date, end_date
+        )
         
-        cat_id = tx["category_id"]
-        if cat_id not in category_totals:
-            category_totals[cat_id] = 0.0
-        category_totals[cat_id] += tx["amount"]
-    
-    category_breakdown = []
-    for cat_id, total in category_totals.items():
-        cat = cat_map.get(cat_id, {})
-        category_breakdown.append({
-            "category_id": cat_id,
-            "category_name": cat.get("name", "Unknown"),
-            "type": cat.get("type", "expense"),
-            "total": total,
-            "budget_limit": cat.get("budget_limit", 0),
-            "color": cat.get("color", "#3D405B")
-        })
-    
-    return {
-        "month": month,
-        "year": year,
-        "total_income": total_income,
-        "total_expenses": total_expenses,
-        "balance": total_income - total_expenses,
-        "category_breakdown": category_breakdown
-    }
+        # Get all categories
+        categories = await conn.fetch(
+            "SELECT id::text, name, type, budget_limit, color FROM categories"
+        )
+        cat_map = {row["id"]: dict(row) for row in categories}
+        
+        total_income = 0.0
+        total_expenses = 0.0
+        category_totals = {}
+        
+        for tx in transactions:
+            amount = float(tx["amount"])
+            if tx["type"] == "income":
+                total_income += amount
+            else:
+                total_expenses += amount
+            
+            cat_id = tx["category_id"]
+            if cat_id not in category_totals:
+                category_totals[cat_id] = 0.0
+            category_totals[cat_id] += amount
+        
+        category_breakdown = []
+        for cat_id, total in category_totals.items():
+            cat = cat_map.get(cat_id, {})
+            category_breakdown.append({
+                "category_id": cat_id,
+                "category_name": cat.get("name", "Unknown"),
+                "type": cat.get("type", "expense"),
+                "total": total,
+                "budget_limit": float(cat.get("budget_limit", 0)),
+                "color": cat.get("color", "#3D405B")
+            })
+        
+        return {
+            "month": month,
+            "year": year,
+            "total_income": total_income,
+            "total_expenses": total_expenses,
+            "balance": total_income - total_expenses,
+            "category_breakdown": category_breakdown
+        }
 
 @api_router.get("/summary/yearly")
 async def get_yearly_summary(year: int):
     monthly_data = []
     
-    for month in range(1, 13):
-        start_date = f"{year}-{month:02d}-01"
-        if month == 12:
-            end_date = f"{year + 1}-01-01"
-        else:
-            end_date = f"{year}-{month + 1:02d}-01"
-        
-        pipeline = [
-            {"$match": {"date": {"$gte": start_date, "$lt": end_date}}},
-            {"$group": {
-                "_id": "$type",
-                "total": {"$sum": "$amount"}
-            }}
-        ]
-        
-        results = await db.transactions.aggregate(pipeline).to_list(10)
-        
-        income = 0.0
-        expenses = 0.0
-        for r in results:
-            if r["_id"] == "income":
-                income = r["total"]
+    db_pool = await get_db()
+    async with db_pool.acquire() as conn:
+        for month in range(1, 13):
+            start_date = f"{year}-{month:02d}-01"
+            if month == 12:
+                end_date = f"{year + 1}-01-01"
             else:
-                expenses = r["total"]
-        
-        monthly_data.append({
-            "month": month,
-            "income": income,
-            "expenses": expenses,
-            "balance": income - expenses
-        })
+                end_date = f"{year}-{month + 1:02d}-01"
+            
+            rows = await conn.fetch(
+                "SELECT type, SUM(amount) as total FROM transactions WHERE date >= $1 AND date < $2 GROUP BY type",
+                start_date, end_date
+            )
+            
+            income = 0.0
+            expenses = 0.0
+            for row in rows:
+                if row["type"] == "income":
+                    income = float(row["total"])
+                else:
+                    expenses = float(row["total"])
+            
+            monthly_data.append({
+                "month": month,
+                "income": income,
+                "expenses": expenses,
+                "balance": income - expenses
+            })
     
     return {
         "year": year,
@@ -324,38 +458,38 @@ async def get_budget_status(month: int, year: int):
     else:
         end_date = f"{year}-{month + 1:02d}-01"
     
-    # Get expense categories
-    categories = await db.categories.find({"type": "expense"}, {"_id": 0}).to_list(100)
-    
-    # Get spending by category
-    pipeline = [
-        {"$match": {"date": {"$gte": start_date, "$lt": end_date}, "type": "expense"}},
-        {"$group": {
-            "_id": "$category_id",
-            "spent": {"$sum": "$amount"}
-        }}
-    ]
-    spending = await db.transactions.aggregate(pipeline).to_list(100)
-    spending_map = {s["_id"]: s["spent"] for s in spending}
-    
-    budget_status = []
-    for cat in categories:
-        spent = spending_map.get(cat["id"], 0)
-        budget_limit = cat.get("budget_limit", 0)
-        percentage = (spent / budget_limit * 100) if budget_limit > 0 else 0
+    db_pool = await get_db()
+    async with db_pool.acquire() as conn:
+        # Get expense categories
+        categories = await conn.fetch(
+            "SELECT id::text, name, budget_limit, color FROM categories WHERE type = 'expense'"
+        )
         
-        budget_status.append({
-            "category_id": cat["id"],
-            "category_name": cat["name"],
-            "budget_limit": budget_limit,
-            "spent": spent,
-            "remaining": max(0, budget_limit - spent),
-            "percentage": min(percentage, 100),
-            "over_budget": spent > budget_limit if budget_limit > 0 else False,
-            "color": cat.get("color", "#3D405B")
-        })
-    
-    return budget_status
+        # Get spending by category
+        spending = await conn.fetch(
+            "SELECT category_id::text, SUM(amount) as spent FROM transactions WHERE date >= $1 AND date < $2 AND type = 'expense' GROUP BY category_id",
+            start_date, end_date
+        )
+        spending_map = {row["category_id"]: float(row["spent"]) for row in spending}
+        
+        budget_status = []
+        for cat in categories:
+            spent = spending_map.get(cat["id"], 0.0)
+            budget_limit = float(cat["budget_limit"])
+            percentage = (spent / budget_limit * 100) if budget_limit > 0 else 0
+            
+            budget_status.append({
+                "category_id": cat["id"],
+                "category_name": cat["name"],
+                "budget_limit": budget_limit,
+                "spent": spent,
+                "remaining": max(0, budget_limit - spent),
+                "percentage": min(percentage, 100),
+                "over_budget": spent > budget_limit if budget_limit > 0 else False,
+                "color": cat["color"]
+            })
+        
+        return budget_status
 
 # Include the router in the main app
 app.include_router(api_router)
@@ -375,6 +509,3 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
