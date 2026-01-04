@@ -137,45 +137,45 @@ export default function Categories() {
         className="border shadow-none hover:border-primary/50 transition-colors"
         data-testid={`category-${category.id}`}
       >
-        <CardContent className="pt-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-3">
+        <CardContent className="p-4 sm:pt-6 sm:p-6">
+          <div className="flex items-start justify-between mb-3 sm:mb-4">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <div 
-                className="w-4 h-4 rounded"
+                className="w-3 h-3 sm:w-4 sm:h-4 rounded flex-shrink-0"
                 style={{ backgroundColor: category.color }}
               />
-              <div>
-                <h3 className="font-semibold">{category.name}</h3>
+              <div className="min-w-0">
+                <h3 className="font-semibold text-sm sm:text-base truncate">{category.name}</h3>
                 <p className="text-xs text-muted-foreground capitalize">
                   {category.type}
                 </p>
               </div>
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-0.5 sm:gap-1 flex-shrink-0">
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-8 w-8"
+                className="h-7 w-7 sm:h-8 sm:w-8"
                 onClick={() => handleOpenModal(category)}
                 data-testid={`edit-category-${category.id}`}
               >
-                <Pencil className="w-4 h-4" />
+                <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </Button>
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-8 w-8 text-destructive hover:text-destructive"
+                className="h-7 w-7 sm:h-8 sm:w-8 text-destructive hover:text-destructive"
                 onClick={() => handleDelete(category.id)}
                 data-testid={`delete-category-${category.id}`}
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </Button>
             </div>
           </div>
 
           {hasBudget && budget && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
+            <div className="space-y-1.5 sm:space-y-2">
+              <div className="flex justify-between text-xs sm:text-sm">
                 <span className="text-muted-foreground">Budget</span>
                 <span className={`font-medium ${budget.over_budget ? 'text-destructive' : ''}`}>
                   {formatCurrency(budget.spent)} / {formatCurrency(category.budget_limit)}
@@ -183,7 +183,7 @@ export default function Categories() {
               </div>
               <Progress 
                 value={Math.min(budget.percentage, 100)} 
-                className="h-2"
+                className="h-1.5 sm:h-2"
                 style={{
                   '--progress-foreground': getBudgetStatusColor(budget.percentage)
                 }}
@@ -208,21 +208,23 @@ export default function Categories() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in" data-testid="categories-page">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in" data-testid="categories-page">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Categories</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Categories</h1>
+          <p className="text-sm text-muted-foreground mt-1 hidden sm:block">
             Manage your income and expense categories
           </p>
         </div>
         <Button 
           onClick={() => handleOpenModal()}
           data-testid="add-category-btn"
+          size="sm"
+          className="sm:size-default w-fit"
         >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Category
+          <Plus className="w-4 h-4 sm:mr-2" />
+          <span className="hidden sm:inline">Add Category</span>
         </Button>
       </div>
 
@@ -237,36 +239,36 @@ export default function Categories() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="expense" className="mt-6">
+        <TabsContent value="expense" className="mt-4 sm:mt-6">
           {loading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading...</div>
+            <div className="text-center py-8 text-muted-foreground text-sm">Loading...</div>
           ) : expenseCategories.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {expenseCategories.map(cat => (
                 <CategoryCard key={cat.id} category={cat} />
               ))}
             </div>
           ) : (
             <Card className="border shadow-none">
-              <CardContent className="py-8 text-center text-muted-foreground">
+              <CardContent className="py-8 text-center text-muted-foreground text-sm">
                 No expense categories yet
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
-        <TabsContent value="income" className="mt-6">
+        <TabsContent value="income" className="mt-4 sm:mt-6">
           {loading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading...</div>
+            <div className="text-center py-8 text-muted-foreground text-sm">Loading...</div>
           ) : incomeCategories.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {incomeCategories.map(cat => (
                 <CategoryCard key={cat.id} category={cat} />
               ))}
             </div>
           ) : (
             <Card className="border shadow-none">
-              <CardContent className="py-8 text-center text-muted-foreground">
+              <CardContent className="py-8 text-center text-muted-foreground text-sm">
                 No income categories yet
               </CardContent>
             </Card>
