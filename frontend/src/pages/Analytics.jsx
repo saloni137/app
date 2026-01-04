@@ -112,18 +112,18 @@ export default function Analytics() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in" data-testid="analytics-page">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in" data-testid="analytics-page">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Analytics</h1>
+          <p className="text-sm text-muted-foreground mt-1 hidden sm:block">
             Visualize your financial data
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2 sm:gap-3">
           <Select value={year.toString()} onValueChange={(v) => setYear(parseInt(v))}>
-            <SelectTrigger className="w-28" data-testid="year-select">
+            <SelectTrigger className="w-20 sm:w-28 h-9" data-testid="year-select">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -136,19 +136,19 @@ export default function Analytics() {
       </div>
 
       {/* Yearly Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-4">
         <Card className="border shadow-none" data-testid="yearly-income-card">
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Total Income ({year})</p>
-            <p className="text-3xl font-bold text-green-700 tabular-nums">
+          <CardContent className="p-3 sm:pt-6 sm:p-6">
+            <p className="text-xs sm:text-sm text-muted-foreground">Income ({year})</p>
+            <p className="text-lg sm:text-3xl font-bold text-green-700 tabular-nums">
               {formatCurrency(yearlyData?.total_income || 0)}
             </p>
           </CardContent>
         </Card>
         <Card className="border shadow-none" data-testid="yearly-expenses-card">
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Total Expenses ({year})</p>
-            <p className="text-3xl font-bold text-red-600 tabular-nums">
+          <CardContent className="p-3 sm:pt-6 sm:p-6">
+            <p className="text-xs sm:text-sm text-muted-foreground">Expenses ({year})</p>
+            <p className="text-lg sm:text-3xl font-bold text-red-600 tabular-nums">
               {formatCurrency(yearlyData?.total_expenses || 0)}
             </p>
           </CardContent>
@@ -157,21 +157,22 @@ export default function Analytics() {
 
       {/* Monthly Income vs Expenses Bar Chart */}
       <Card className="border shadow-none" data-testid="monthly-comparison-chart">
-        <CardHeader>
-          <CardTitle className="text-lg">Income vs Expenses ({year})</CardTitle>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">Income vs Expenses ({year})</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="h-80">
+        <CardContent className="p-2 sm:p-6 pt-0">
+          <div className="h-56 sm:h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <BarChart data={barChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                <XAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
                 <YAxis 
-                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
                   tickFormatter={(value) => `$${value >= 1000 ? `${(value/1000).toFixed(0)}k` : value}`}
+                  width={40}
                 />
                 <Tooltip content={<CustomTooltip />} />
-                <Legend />
+                <Legend wrapperStyle={{ fontSize: '12px' }} />
                 <Bar dataKey="Income" fill="#2E5C42" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="Expenses" fill="#E07A5F" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -182,18 +183,19 @@ export default function Analytics() {
 
       {/* Monthly Balance Trend */}
       <Card className="border shadow-none" data-testid="balance-trend-chart">
-        <CardHeader>
-          <CardTitle className="text-lg">Monthly Balance Trend ({year})</CardTitle>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">Monthly Balance Trend ({year})</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="h-64">
+        <CardContent className="p-2 sm:p-6 pt-0">
+          <div className="h-48 sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={balanceChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <LineChart data={balanceChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                <XAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
                 <YAxis 
-                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
                   tickFormatter={(value) => `$${value >= 1000 ? `${(value/1000).toFixed(0)}k` : value}`}
+                  width={40}
                 />
                 <Tooltip content={<CustomTooltip />} />
                 <Line 
@@ -201,7 +203,7 @@ export default function Analytics() {
                   dataKey="Balance" 
                   stroke="#3D405B" 
                   strokeWidth={2}
-                  dot={{ fill: '#3D405B', strokeWidth: 2 }}
+                  dot={{ fill: '#3D405B', strokeWidth: 2, r: 3 }}
                 />
               </LineChart>
             </ResponsiveContainer>
