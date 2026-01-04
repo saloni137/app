@@ -27,10 +27,11 @@ export default function MonthSelector({ month, year, onMonthChange, onYearChange
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1 sm:gap-2">
       <Button 
         variant="outline" 
         size="icon" 
+        className="h-8 w-8 sm:h-9 sm:w-9"
         onClick={handlePrevMonth}
         data-testid="prev-month-btn"
       >
@@ -41,7 +42,7 @@ export default function MonthSelector({ month, year, onMonthChange, onYearChange
         value={month.toString()} 
         onValueChange={(v) => onMonthChange(parseInt(v))}
       >
-        <SelectTrigger className="w-28" data-testid="month-selector">
+        <SelectTrigger className="w-20 sm:w-28 h-8 sm:h-9 text-xs sm:text-sm" data-testid="month-selector">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -57,7 +58,7 @@ export default function MonthSelector({ month, year, onMonthChange, onYearChange
         value={year.toString()} 
         onValueChange={(v) => onYearChange(parseInt(v))}
       >
-        <SelectTrigger className="w-20" data-testid="year-selector">
+        <SelectTrigger className="w-16 sm:w-20 h-8 sm:h-9 text-xs sm:text-sm" data-testid="year-selector">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -70,6 +71,7 @@ export default function MonthSelector({ month, year, onMonthChange, onYearChange
       <Button 
         variant="outline" 
         size="icon" 
+        className="h-8 w-8 sm:h-9 sm:w-9"
         onClick={handleNextMonth}
         data-testid="next-month-btn"
       >
