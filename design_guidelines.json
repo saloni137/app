@@ -1,0 +1,147 @@
+{
+  "identity": {
+    "name": "E1",
+    "role": "The Anti-AI Designer",
+    "mission": "Create a 'Zen Accountant' interface that calms financial anxiety through clarity, nature-inspired tones, and Swiss-style precision."
+  },
+  "theme_strategy": {
+    "name": "Zen Accountant",
+    "archetype": "Organic & Earthy (Modernized)",
+    "vibe": "Calm, Precise, Trustworthy, Fresh",
+    "mode": "light",
+    "justification": "Financial data is stressful. The UI should act as a calming agent. We use a 'Stone & Leaf' palette to reduce eye strain and evoke stability."
+  },
+  "typography": {
+    "headings": {
+      "family": "Chivo, sans-serif",
+      "weights": ["700", "900"],
+      "usage": "Use for all page titles, card headers, and major metrics. Tracking tight (-0.02em).",
+      "import_url": "https://fonts.googleapis.com/css2?family=Chivo:wght@400;700;900&family=Public+Sans:wght@400;500;600&display=swap"
+    },
+    "body": {
+      "family": "Public Sans, sans-serif",
+      "weights": ["400", "500", "600"],
+      "usage": "Use for all data tables, labels, and inputs. Excellent legibility for numbers."
+    }
+  },
+  "colors": {
+    "palette_name": "Stone & Evergreen",
+    "css_variables": {
+      "light": {
+        "--background": "60 5% 96%",
+        "--foreground": "145 50% 10%",
+        "--card": "0 0% 100%",
+        "--card-foreground": "145 50% 10%",
+        "--popover": "0 0% 100%",
+        "--popover-foreground": "145 50% 10%",
+        "--primary": "145 40% 20%",
+        "--primary-foreground": "0 0% 100%",
+        "--secondary": "70 30% 90%",
+        "--secondary-foreground": "145 40% 20%",
+        "--muted": "60 5% 90%",
+        "--muted-foreground": "145 20% 40%",
+        "--accent": "70 60% 50%",
+        "--accent-foreground": "145 50% 10%",
+        "--destructive": "10 70% 50%",
+        "--destructive-foreground": "0 0% 98%",
+        "--border": "60 5% 85%",
+        "--input": "60 5% 85%",
+        "--ring": "145 40% 20%",
+        "--radius": "0.3rem"
+      }
+    },
+    "usage_rules": [
+      "NEVER use pure black (#000000). Use Deep Evergreen (hsl(145 50% 10%)) for text.",
+      "Background is NOT white. It is 'Stone' (hsl(60 5% 96%)). Cards are White.",
+      "Use 'Lime' (Accent) sparingly for positive trends or active states.",
+      "Use 'Burnt Orange' (Destructive) for expenses/errors."
+    ]
+  },
+  "layout_strategy": {
+    "dashboard_grid": {
+      "type": "Control Room Grid (Mode B)",
+      "classes": "grid grid-cols-1 md:grid-cols-4 gap-6 p-8",
+      "areas": [
+        {
+          "name": "Total Balance (Hero)",
+          "span": "col-span-1 md:col-span-2 row-span-1",
+          "style": "Card with large typography"
+        },
+        {
+          "name": "Monthly Spend (Chart)",
+          "span": "col-span-1 md:col-span-2 row-span-2",
+          "style": "Card containing Bar Chart"
+        },
+        {
+          "name": "Budget Status (Pie)",
+          "span": "col-span-1 md:col-span-1 row-span-1",
+          "style": "Card containing Pie Chart"
+        },
+        {
+          "name": "Recent Transactions (List)",
+          "span": "col-span-1 md:col-span-1 row-span-2",
+          "style": "Tall card with scrollable list"
+        }
+      ]
+    },
+    "spacing": {
+      "container_padding": "p-6 md:p-12",
+      "card_padding": "p-6",
+      "section_gap": "gap-8"
+    }
+  },
+  "components": {
+    "cards": {
+      "style": "Flat, 1px border (border-border), no shadow (shadow-none).",
+      "hover": "hover:border-primary/50 transition-colors duration-300"
+    },
+    "buttons": {
+      "primary": "bg-primary text-primary-foreground hover:bg-primary/90 rounded-md shadow-sm font-medium tracking-wide",
+      "secondary": "bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-md"
+    },
+    "charts": {
+      "library": "recharts",
+      "style": "Minimalist. Remove grid lines if possible. Use custom tooltip.",
+      "colors": ["#2E5C42", "#8FB339", "#E07A5F", "#3D405B", "#F2CC8F"]
+    },
+    "tables": {
+      "style": "Clean rows. No vertical borders. Header text uppercase and small (text-xs tracking-wider text-muted-foreground)."
+    }
+  },
+  "visual_enhancers": {
+    "textures": "Use subtle noise texture on the main background if possible (opacity 0.02).",
+    "empty_states": "Use abstract geometric images for empty states.",
+    "glassmorphism": "Use 'Crystal Glass' for the sticky top navigation: bg-background/80 backdrop-blur-md border-b border-border/50."
+  },
+  "image_urls": {
+    "abstract_shapes": [
+      {
+        "url": "https://images.pexels.com/photos/7307528/pexels-photo-7307528.jpeg",
+        "description": "Minimalist abstract curves, use for 'Budget Goals' card background or empty state.",
+        "category": "decoration"
+      },
+      {
+        "url": "https://images.pexels.com/photos/6658862/pexels-photo-6658862.jpeg",
+        "description": "Soft geometric paper art, use for 'Savings' section background.",
+        "category": "decoration"
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "1. INSTALL RECHARTS: Run 'yarn add recharts' immediately. It is required for charts.",
+    "2. UPDATE INDEX.CSS: Replace the :root variables with the 'Stone & Evergreen' palette provided above.",
+    "3. UPDATE INDEX.HTML: Add the Google Fonts import link to the <head>.",
+    "4. CREATE LAYOUT: Build a 'DashboardLayout' component that implements the 'Control Room' grid.",
+    "5. DATA-TESTID: Ensure every button, input, and card has a unique data-testid (e.g., 'add-transaction-btn').",
+    "6. NO AUTH: Do not build login screens. Start directly at the Dashboard.",
+    "7. CURRENCY: Hardcode 'CAD' and '$' symbol for all monetary values.",
+    "8. TRANSPARENCY: Do not use 'bg-transparent' on the Navbar. Use the glassmorphism recipe provided."
+  ],
+  "universal_guidelines": [
+    "Do not use gradients for backgrounds. Use solid 'Stone' colors.",
+    "Do not center text in cards unless it is a single big number.",
+    "Use 2x more padding than you think is necessary.",
+    "Always add hover states to interactive elements.",
+    "Use 'sonner' for all success/error notifications."
+  ]
+}
