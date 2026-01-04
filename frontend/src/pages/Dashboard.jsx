@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [showTransactionModal, setShowTransactionModal] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [summaryRes, budgetRes, txRes, catRes] = await Promise.all([
@@ -42,11 +42,11 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [month, year]);
 
   useEffect(() => {
     fetchData();
-  }, [month, year]);
+  }, [fetchData]);
 
   const categoryMap = categories.reduce((acc, cat) => {
     acc[cat.id] = cat;

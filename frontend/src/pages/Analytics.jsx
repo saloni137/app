@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -21,7 +21,7 @@ export default function Analytics() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [yearRes, catRes, monthRes] = await Promise.all([
@@ -37,11 +37,11 @@ export default function Analytics() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [year, selectedMonth]);
 
   useEffect(() => {
     fetchData();
-  }, [year, selectedMonth]);
+  }, [fetchData]);
 
   const barChartData = yearlyData?.monthly_data?.map(m => ({
     name: getMonthName(m.month).substring(0, 3),
