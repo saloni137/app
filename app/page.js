@@ -323,9 +323,9 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <span className={`font-semibold tabular-nums text-sm sm:text-base ml-2 flex-shrink-0 ${
-                      tx.type === 'income' ? 'text-green-700' : 'text-red-600'
+                      tx.type === 'income' ? 'text-green-700' : tx.type === 'investment' ? 'text-blue-600' : 'text-red-600'
                     }`}>
-                      {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                      {tx.type === 'income' ? '+' : tx.type === 'investment' ? '●' : '-'}{formatCurrency(tx.amount)}
                     </span>
                   </div>
                 );

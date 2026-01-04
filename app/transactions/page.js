@@ -159,6 +159,7 @@ export default function Transactions() {
                 <SelectItem value="all">All types</SelectItem>
                 <SelectItem value="income">Income</SelectItem>
                 <SelectItem value="expense">Expenses</SelectItem>
+                <SelectItem value="investment">Investment</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -225,9 +226,9 @@ export default function Transactions() {
                       </div>
                       <div className="flex items-center gap-2 ml-2">
                         <span className={`font-semibold tabular-nums text-sm ${
-                          tx.type === 'income' ? 'text-green-700' : 'text-red-600'
+                          tx.type === 'income' ? 'text-green-700' : tx.type === 'investment' ? 'text-blue-600' : 'text-red-600'
                         }`}>
-                          {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                          {tx.type === 'income' ? '+' : tx.type === 'investment' ? '●' : '-'}{formatCurrency(tx.amount)}
                         </span>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -293,9 +294,9 @@ export default function Transactions() {
                             </div>
                           </TableCell>
                           <TableCell className={`text-right font-semibold tabular-nums ${
-                            tx.type === 'income' ? 'text-green-700' : 'text-red-600'
+                            tx.type === 'income' ? 'text-green-700' : tx.type === 'investment' ? 'text-blue-600' : 'text-red-600'
                           }`}>
-                            {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                            {tx.type === 'income' ? '+' : tx.type === 'investment' ? '●' : '-'}{formatCurrency(tx.amount)}
                           </TableCell>
                           <TableCell>
                             <DropdownMenu>

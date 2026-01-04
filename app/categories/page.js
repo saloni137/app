@@ -64,6 +64,7 @@ export default function Categories() {
 
   const incomeCategories = categories.filter(c => c.type === "income")
   const expenseCategories = categories.filter(c => c.type === "expense")
+  const investmentCategories = categories.filter(c => c.type === "investment")
 
   const handleOpenModal = (category = null) => {
     if (category) {
@@ -232,12 +233,15 @@ export default function Categories() {
 
       {/* Tabs */}
       <Tabs defaultValue="expense" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-md grid-cols-3">
           <TabsTrigger value="expense" data-testid="expense-tab">
             Expenses ({expenseCategories.length})
           </TabsTrigger>
           <TabsTrigger value="income" data-testid="income-tab">
             Income ({incomeCategories.length})
+          </TabsTrigger>
+          <TabsTrigger value="investment" data-testid="investment-tab">
+            Investment ({investmentCategories.length})
           </TabsTrigger>
         </TabsList>
 
@@ -272,6 +276,24 @@ export default function Categories() {
             <Card className="border shadow-none">
               <CardContent className="py-8 text-center text-muted-foreground text-sm">
                 No income categories yet
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="investment" className="mt-4 sm:mt-6">
+          {loading ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">Loading...</div>
+          ) : investmentCategories.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              {investmentCategories.map(cat => (
+                <CategoryCard key={cat.id} category={cat} />
+              ))}
+            </div>
+          ) : (
+            <Card className="border shadow-none">
+              <CardContent className="py-8 text-center text-muted-foreground text-sm">
+                No investment categories yet
               </CardContent>
             </Card>
           )}
@@ -311,6 +333,7 @@ export default function Categories() {
                   <SelectContent>
                     <SelectItem value="expense">Expense</SelectItem>
                     <SelectItem value="income">Income</SelectItem>
+                    <SelectItem value="investment">Investment</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

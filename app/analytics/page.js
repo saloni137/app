@@ -72,6 +72,14 @@ export default function Analytics() {
       color: c.color
     }))
 
+  const investmentPieData = monthlyBreakdown
+    .filter(c => c.type === "investment" && c.total > 0)
+    .map(c => ({
+      name: c.category_name,
+      value: c.total,
+      color: c.color
+    }))
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
@@ -230,9 +238,10 @@ export default function Analytics() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="expenses">
-            <TabsList className="grid w-full max-w-xs grid-cols-2 mb-6">
+            <TabsList className="grid w-full max-w-xs grid-cols-3 mb-6">
               <TabsTrigger value="expenses">Expenses</TabsTrigger>
               <TabsTrigger value="income">Income</TabsTrigger>
+              <TabsTrigger value="investment">Investment</TabsTrigger>
             </TabsList>
             
             <TabsContent value="expenses">
@@ -293,6 +302,37 @@ export default function Analytics() {
               ) : (
                 <div className="h-80 flex items-center justify-center text-muted-foreground">
                   No income data for {getMonthName(selectedMonth)}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="investment">
+              {investmentPieData.length > 0 ? (
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={investmentPieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={2}
+                        dataKey="value"
+                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                        labelLine={false}
+                      >
+                        {investmentPieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<PieTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="h-80 flex items-center justify-center text-muted-foreground">
+                  No investment data for {getMonthName(selectedMonth)}
                 </div>
               )}
             </TabsContent>
