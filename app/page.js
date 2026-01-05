@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { 
-  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, 
+  PieChart, Pie, Cell,
   ResponsiveContainer, Tooltip, Legend 
 } from "recharts"
-import { Plus, TrendingUp, TrendingDown, Wallet, ArrowRight } from "lucide-react"
+import { Plus, TrendingUp, TrendingDown, Wallet, ArrowRight, TrendingUp as InvestmentIcon } from "lucide-react"
 import { getMonthlySummary, getBudgetStatus, getTransactions, getCategories } from "@/lib/db"
 import { formatCurrency, formatDate, getMonthName, getCurrentMonth, getCurrentYear, getBudgetStatusColor } from "@/lib/utils"
 import TransactionModal from "@/components/TransactionModal"
@@ -128,7 +128,7 @@ export default function Dashboard() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-6">
         <Card className="border shadow-none hover:border-primary/50 transition-colors" data-testid="balance-card">
           <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-3 sm:p-6">
             <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
@@ -176,6 +176,23 @@ export default function Dashboard() {
             </div>
             <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
               Total spent
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border shadow-none hover:border-primary/50 transition-colors" data-testid="investments-card">
+          <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+              Investments
+            </CardTitle>
+            <InvestmentIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 hidden sm:block" />
+          </CardHeader>
+          <CardContent className="p-3 sm:p-6 pt-0">
+            <div className="text-lg sm:text-3xl font-bold tabular-nums text-blue-600">
+              {formatCurrency(summary?.total_investments || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
+              Total invested
             </p>
           </CardContent>
         </Card>

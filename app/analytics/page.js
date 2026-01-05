@@ -48,7 +48,8 @@ export default function Analytics() {
   const barChartData = yearlyData?.monthly_data?.map(m => ({
     name: getMonthName(m.month).substring(0, 3),
     Income: m.income,
-    Expenses: m.expenses
+    Expenses: m.expenses,
+    Investments: m.investments || 0
   })) || []
 
   const balanceChartData = yearlyData?.monthly_data?.map(m => ({
@@ -146,7 +147,7 @@ export default function Analytics() {
       </div>
 
       {/* Yearly Summary Cards */}
-      <div className="grid grid-cols-2 gap-2 sm:gap-4">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <Card className="border shadow-none" data-testid="yearly-income-card">
           <CardContent className="p-3 sm:pt-6 sm:p-6">
             <p className="text-xs sm:text-sm text-muted-foreground">Income ({year})</p>
@@ -163,12 +164,20 @@ export default function Analytics() {
             </p>
           </CardContent>
         </Card>
+        <Card className="border shadow-none" data-testid="yearly-investments-card">
+          <CardContent className="p-3 sm:pt-6 sm:p-6">
+            <p className="text-xs sm:text-sm text-muted-foreground">Investments ({year})</p>
+            <p className="text-lg sm:text-3xl font-bold text-blue-600 tabular-nums">
+              {formatCurrency(yearlyData?.total_investments || 0)}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Monthly Income vs Expenses Bar Chart */}
+      {/* Monthly Income vs Expenses vs Investments Bar Chart */}
       <Card className="border shadow-none" data-testid="monthly-comparison-chart">
         <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="text-base sm:text-lg">Income vs Expenses ({year})</CardTitle>
+          <CardTitle className="text-base sm:text-lg">Income vs Expenses vs Investments ({year})</CardTitle>
         </CardHeader>
         <CardContent className="p-2 sm:p-6 pt-0">
           <div className="h-56 sm:h-80">
@@ -185,6 +194,7 @@ export default function Analytics() {
                 <Legend wrapperStyle={{ fontSize: '12px' }} />
                 <Bar dataKey="Income" fill="#2E5C42" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="Expenses" fill="#E07A5F" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Investments" fill="#3D405B" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
